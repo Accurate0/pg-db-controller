@@ -4,6 +4,6 @@ metadata:
   name: pg-db-controller
   namespace: pg-db-controller
 spec:
-  databaseName: pg_db_controller
+  databaseName: k8s_pg_db_controller
   secretName: pg-db-controller-test-secret
   secretNamespace: pg-db-controller
