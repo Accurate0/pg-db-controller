@@ -1,0 +1,9 @@
+apiVersion: inf-k8s.net/v1
+kind: PostgresDatabase
+metadata:
+  name: pg-db-controller
+  namespace: pg-db-controller
+spec:
+  databaseName: pg_db_controller
+  secretName: pg-db-controller-test-secret
+  secretNamespace: pg-db-controller
