@@ -1,0 +1,22 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT datname FROM pg_catalog.pg_database WHERE lower(datname) = lower($1);",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "datname",
+        "type_info": "Name"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "0e2740ed594d3f2bc0d302c1facd6633ba52a7f714f7be0b13d6c65eff193f63"
+}

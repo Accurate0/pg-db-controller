@@ -8,6 +8,7 @@ RUN apt-get update -y && apt-get install -y pkg-config libssl-dev
 
 WORKDIR /app/${BINARY_NAME}-build
 
+ENV SQLX_OFFLINE=true
 COPY . .
 RUN \
     --mount=type=cache,target=/app/${BINARY_NAME}-build/target/ \
