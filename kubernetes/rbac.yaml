@@ -30,4 +30,4 @@ subjects:
     namespace: pg-db-controller
 roleRef:
   kind: ClusterRole
-  name: ingress-reader
+  name: pg-db-controller-access
