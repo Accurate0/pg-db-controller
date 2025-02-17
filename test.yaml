@@ -1,0 +1,10 @@
+apiVersion: inf-k8s.net/v1
+kind: PostgresDatabase
+metadata:
+  name: test-db
+  namespace: testing
+spec:
+  databaseName: test
+  roleName: different
+  secretName: testing-secret-pg
+  secretNamespace: testing

@@ -1,0 +1,26 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: pg-db-controller
+  namespace: argocd
+spec:
+  syncPolicy:
+    syncOptions:
+      - CreateNamespace=true
+  project: default
+  source:
+    repoURL: https://github.com/Accurate0/pg-db-controller.git
+    path: kubernetes
+    kustomize:
+      images:
+        - pg-db-controller=ghcr.io/accurate0/pg-db-controller:${ARGOCD_APP_REVISION}
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: pg-db-controller
+operation:
+  initiatedBy:
+    username: github-actions
+  sync:
+    prune: true
+    syncStrategy:
+      hook: {}

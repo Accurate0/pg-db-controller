@@ -1,0 +1,33 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  namespace: pg-db-controller
+  name: pg-db-controller-access
+rules:
+  - apiGroups:
+      - "inf-k8s.net"
+    resources:
+      - postgresdatabases
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - ""
+    resources:
+      - secrets
+    verbs:
+      - create
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: pg-db-controller
+  namespace: pg-db-controller
+subjects:
+  - kind: ServiceAccount
+    name: pg-db-controller
+    namespace: pg-db-controller
+roleRef:
+  kind: ClusterRole
+  name: ingress-reader
