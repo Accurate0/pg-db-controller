@@ -136,6 +136,8 @@ async fn reconcile(obj: Arc<PostgresDatabase>, ctx: Arc<ControllerContext>) -> R
             ..Default::default()
         };
 
+        // update existing secret if DB already exists, but we can't ever add password
+        // we could reset the password for the role though
         let secrets = Api::<Secret>::namespaced(ctx.client.clone(), &obj.spec.secret_namespace);
         let pp = PostParams::default();
 
