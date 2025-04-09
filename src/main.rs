@@ -97,10 +97,34 @@ async fn reconcile(obj: Arc<PostgresDatabase>, ctx: Arc<ControllerContext>) -> R
         .execute(&ctx.db)
         .await?;
 
+        let connection_options = ctx.db.connect_options();
+        let host = connection_options.get_host();
+        let port = connection_options.get_port();
+
+        let db_url =
+            format!("postgresql://{role_name}:{password}@{host}:{port}/{database_to_create}");
+
         let mut data = BTreeMap::new();
         data.insert(
-            "PG_PASSWORD".to_string(),
-            ByteString(BASE64_STANDARD.encode(password).into_bytes()),
+            "PGPASSWORD".to_string(),
+            ByteString(password.clone().into_bytes()),
+        );
+        data.insert("DATABASE_URL".to_string(), ByteString(db_url.into_bytes()));
+        data.insert(
+            "PGHOST".to_string(),
+            ByteString(host.to_owned().into_bytes()),
+        );
+        data.insert(
+            "PGPORT".to_string(),
+            ByteString(port.to_string().into_bytes()),
+        );
+        data.insert(
+            "PGDATABASE".to_string(),
+            ByteString(database_to_create.to_string().into_bytes()),
+        );
+        data.insert(
+            "PGUSER".to_string(),
+            ByteString(role_name.to_string().into_bytes()),
         );
 
         let secret = Secret {
