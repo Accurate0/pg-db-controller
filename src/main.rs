@@ -1,7 +1,4 @@
-use base64::{
-    prelude::{BASE64_STANDARD, BASE64_URL_SAFE},
-    Engine,
-};
+use base64::{prelude::BASE64_URL_SAFE, Engine};
 use futures::StreamExt;
 use k8s_openapi::{api::core::v1::Secret, ByteString};
 use kube::{
