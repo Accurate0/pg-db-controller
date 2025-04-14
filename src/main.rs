@@ -94,6 +94,10 @@ async fn reconcile(obj: Arc<PostgresDatabase>, ctx: Arc<ControllerContext>) -> R
         .execute(&ctx.db)
         .await?;
 
+        sqlx::query(&format!("ALTER ROLE {role_name} WITH LOGIN"))
+            .execute(&ctx.db)
+            .await?;
+
         let connection_options = ctx.db.connect_options();
         let host = connection_options.get_host();
         let port = connection_options.get_port();
