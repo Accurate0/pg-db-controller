@@ -68,7 +68,87 @@ async fn reconcile(obj: Arc<PostgresDatabase>, ctx: Arc<ControllerContext>) -> R
     .len()
         == 1;
 
-    if !db_exists {
+    if db_exists {
+        let role_name = obj.spec.role_name.as_ref().unwrap_or(database_to_create);
+        let mut rng = StdRng::from_os_rng();
+        let mut password_bytes = [0; 32];
+
+        rng.fill_bytes(&mut password_bytes);
+
+        let password = BASE64_URL_SAFE.encode(password_bytes);
+        tracing::info!("using password: {password}");
+
+        sqlx::query(&format!(
+            "ALTER ROLE {role_name} WITH PASSWORD '{password}'"
+        ))
+        .execute(&ctx.db)
+        .await?;
+
+        sqlx::query(&format!(
+            "ALTER DATABASE {database_to_create} OWNER TO {role_name}"
+        ))
+        .execute(&ctx.db)
+        .await?;
+
+        sqlx::query(&format!("ALTER ROLE {role_name} WITH LOGIN"))
+            .execute(&ctx.db)
+            .await?;
+
+        let connection_options = ctx.db.connect_options();
+        let host = connection_options.get_host();
+        let port = connection_options.get_port();
+
+        let db_url =
+            format!("postgresql://{role_name}:{password}@{host}:{port}/{database_to_create}");
+
+        let mut data = BTreeMap::new();
+        data.insert(
+            "PGPASSWORD".to_string(),
+            ByteString(password.clone().into_bytes()),
+        );
+        data.insert("DATABASE_URL".to_string(), ByteString(db_url.into_bytes()));
+        data.insert(
+            "PGHOST".to_string(),
+            ByteString(host.to_owned().into_bytes()),
+        );
+        data.insert(
+            "PGPORT".to_string(),
+            ByteString(port.to_string().into_bytes()),
+        );
+        data.insert(
+            "PGDATABASE".to_string(),
+            ByteString(database_to_create.to_string().into_bytes()),
+        );
+        data.insert(
+            "PGUSER".to_string(),
+            ByteString(role_name.to_string().into_bytes()),
+        );
+
+        let secret = Secret {
+            data: Some(data),
+            immutable: Some(true),
+            metadata: ObjectMeta {
+                name: Some(obj.spec.secret_name.clone()),
+                namespace: Some(obj.spec.secret_namespace.clone()),
+                owner_references: Some(vec![obj.controller_owner_ref(&()).unwrap()]),
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+
+        // update existing secret if DB already exists, but we can't ever add password
+        // we could reset the password for the role though
+        let secrets = Api::<Secret>::namespaced(ctx.client.clone(), &obj.spec.secret_namespace);
+        let pp = PostParams::default();
+
+        let existing_secret = secrets.get(&obj.spec.secret_name).await;
+        tracing::info!("existing secret found, not creating new");
+        if existing_secret.is_err() {
+            secrets.create(&pp, &secret).await?;
+        }
+
+        tracing::info!("secret updated: {}", obj.spec.secret_name);
+    } else {
         sqlx::query(&format!("CREATE DATABASE {database_to_create}"))
             .execute(&ctx.db)
             .await?;
