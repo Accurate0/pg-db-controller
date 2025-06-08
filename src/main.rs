@@ -73,9 +73,16 @@ async fn reconcile(obj: Arc<PostgresDatabase>, ctx: Arc<ControllerContext>) -> R
     let secrets = Api::<Secret>::namespaced(ctx.client.clone(), &obj.spec.secret_namespace);
     let pp = PostParams::default();
 
+    tracing::info!(
+        "reconciling {}, which already exists = {}",
+        database_to_create,
+        db_exists
+    );
+
     if db_exists {
-        let existing_secret = secrets.get(&obj.spec.secret_name).await;
-        if existing_secret.is_ok() {
+        tracing::info!("checking if secret exists: {}", &obj.spec.secret_name);
+        let existing_secret = secrets.get_opt(&obj.spec.secret_name).await?;
+        if existing_secret.is_some() {
             tracing::info!("existing secret found, not creating new");
             return Ok(Action::requeue(Duration::from_secs(3600)));
         }
@@ -87,7 +94,7 @@ async fn reconcile(obj: Arc<PostgresDatabase>, ctx: Arc<ControllerContext>) -> R
         rng.fill_bytes(&mut password_bytes);
 
         let password = BASE64_URL_SAFE.encode(password_bytes);
-        tracing::info!("using password: {password}");
+        tracing::info!("altering role with new password");
 
         sqlx::query(&format!(
             "ALTER ROLE {role_name} WITH PASSWORD '{password}'"
@@ -149,8 +156,9 @@ async fn reconcile(obj: Arc<PostgresDatabase>, ctx: Arc<ControllerContext>) -> R
 
         secrets.create(&pp, &secret).await?;
 
-        tracing::info!("secret updated: {}", obj.spec.secret_name);
+        tracing::info!("secret created: {}", obj.spec.secret_name);
     } else {
+        tracing::info!("creating new database");
         sqlx::query(&format!("CREATE DATABASE {database_to_create}"))
             .execute(&ctx.db)
             .await?;
@@ -162,7 +170,7 @@ async fn reconcile(obj: Arc<PostgresDatabase>, ctx: Arc<ControllerContext>) -> R
         rng.fill_bytes(&mut password_bytes);
 
         let password = BASE64_URL_SAFE.encode(password_bytes);
-        tracing::info!("using password: {password}");
+        tracing::info!("creating role");
 
         sqlx::query(&format!(
             "CREATE ROLE {role_name} WITH PASSWORD '{password}'"
@@ -221,11 +229,6 @@ async fn reconcile(obj: Arc<PostgresDatabase>, ctx: Arc<ControllerContext>) -> R
             },
             ..Default::default()
         };
-
-        // update existing secret if DB already exists, but we can't ever add password
-        // we could reset the password for the role though
-        let secrets = Api::<Secret>::namespaced(ctx.client.clone(), &obj.spec.secret_namespace);
-        let pp = PostParams::default();
 
         secrets.create(&pp, &secret).await?;
 
