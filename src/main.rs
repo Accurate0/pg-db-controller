@@ -68,7 +68,18 @@ async fn reconcile(obj: Arc<PostgresDatabase>, ctx: Arc<ControllerContext>) -> R
     .len()
         == 1;
 
+    // update existing secret if DB already exists, but we can't ever add password
+    // we could reset the password for the role though
+    let secrets = Api::<Secret>::namespaced(ctx.client.clone(), &obj.spec.secret_namespace);
+    let pp = PostParams::default();
+
     if db_exists {
+        let existing_secret = secrets.get(&obj.spec.secret_name).await;
+        if existing_secret.is_ok() {
+            tracing::info!("existing secret found, not creating new");
+            return Ok(Action::requeue(Duration::from_secs(3600)));
+        }
+
         let role_name = obj.spec.role_name.as_ref().unwrap_or(database_to_create);
         let mut rng = StdRng::from_os_rng();
         let mut password_bytes = [0; 32];
@@ -136,16 +147,7 @@ async fn reconcile(obj: Arc<PostgresDatabase>, ctx: Arc<ControllerContext>) -> R
             ..Default::default()
         };
 
-        // update existing secret if DB already exists, but we can't ever add password
-        // we could reset the password for the role though
-        let secrets = Api::<Secret>::namespaced(ctx.client.clone(), &obj.spec.secret_namespace);
-        let pp = PostParams::default();
-
-        let existing_secret = secrets.get(&obj.spec.secret_name).await;
-        tracing::info!("existing secret found, not creating new");
-        if existing_secret.is_err() {
-            secrets.create(&pp, &secret).await?;
-        }
+        secrets.create(&pp, &secret).await?;
 
         tracing::info!("secret updated: {}", obj.spec.secret_name);
     } else {
