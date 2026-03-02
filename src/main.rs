@@ -7,7 +7,10 @@ use kube::{
     Api, Client, Resource, ResourceExt,
 };
 use pg_db_controller::PostgresDatabase;
-use rand::{rngs::StdRng, RngCore, SeedableRng};
+use rand::{
+    rngs::{StdRng, SysRng},
+    Rng, SeedableRng,
+};
 use sqlx::{postgres::PgPoolOptions, PgPool};
 use std::{collections::BTreeMap, sync::Arc, time::Duration};
 
@@ -85,10 +88,10 @@ async fn reconcile(obj: Arc<PostgresDatabase>, ctx: Arc<ControllerContext>) -> R
         if existing_secret.is_some() {
             tracing::info!("existing secret found, not creating new");
             return Ok(Action::requeue(Duration::from_secs(3600)));
-        }
+        };
 
         let role_name = obj.spec.role_name.as_ref().unwrap_or(database_to_create);
-        let mut rng = StdRng::from_os_rng();
+        let mut rng = StdRng::try_from_rng(&mut SysRng).unwrap();
         let mut password_bytes = [0; 32];
 
         rng.fill_bytes(&mut password_bytes);
@@ -164,7 +167,7 @@ async fn reconcile(obj: Arc<PostgresDatabase>, ctx: Arc<ControllerContext>) -> R
             .await?;
 
         let role_name = obj.spec.role_name.as_ref().unwrap_or(database_to_create);
-        let mut rng = StdRng::from_os_rng();
+        let mut rng = StdRng::try_from_rng(&mut SysRng).unwrap();
         let mut password_bytes = [0; 32];
 
         rng.fill_bytes(&mut password_bytes);
