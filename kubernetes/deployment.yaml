@@ -14,11 +14,6 @@ spec:
         app: pg-db-controller
     spec:
       serviceAccountName: pg-db-controller
-      tolerations:
-        - key: "group"
-          operator: "Equal"
-          value: "external"
-          effect: "NoSchedule"
       containers:
         - name: pg-db-controller
           image: pg-db-controller:latest
